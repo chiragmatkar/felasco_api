@@ -5,10 +5,10 @@ set -euo pipefail
 # Make sure these values are correct for your environment
 resourceGroup="dm-api-01"
 appName="dm-api-01"
-location="WestUS2" 
+location="EastUS" 
 
 # Change this if you are using your own github repository
-gitSource="https://github.com/Azure-Samples/azure-sql-db-python-rest-api.git"
+gitSource="https://github.com/JKornberg/felasco_api"
 
 # Make sure connection string variable is set
 
@@ -45,7 +45,7 @@ az webapp create \
     -g $resourceGroup \
     -n $appName \
     --plan "linux-plan" \
-    --runtime "PYTHON|3.7" \
+    --runtime "PYTHON|3.8" \
     --deployment-source-url $gitSource \
     --deployment-source-branch master
 

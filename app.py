@@ -1,6 +1,6 @@
 import sys
 import os
-import json
+import simplejson as json
 import pyodbc
 import socket
 from flask import Flask
@@ -11,7 +11,9 @@ from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 from opencensus.trace.samplers import ProbabilitySampler
 import logging
-
+import datetime
+import decimal
+from config import *
 # Initialize Flask
 app = Flask(__name__)
 
@@ -41,8 +43,9 @@ class ConnectionManager(object):
     
     def __getConnection(self):
         if (self.__connection == None):
-            application_name = ";APP={0}".format(socket.gethostname())  
-            self.__connection = pyodbc.connect(os.environ['SQLAZURECONNSTR_WWIF'] + application_name)                  
+            application_name = ";APP={0}".format(socket.gethostname())
+            connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={SERVER}};DATABASE={DB};UID={USR};PWD={PWD}"
+            self.__connection = pyodbc.connect(connection_string + application_name)                  
         
         return self.__connection
 
@@ -64,11 +67,21 @@ class ConnectionManager(object):
 
             result = cursor.fetchone()
 
-            if result:
-                result = json.loads(result[0])                           
-            else:
-                result = {}
-
+            columns = [column[0] for column in cursor.description]
+            results = []
+            formatted_list = []
+            if result  != None and len(result) > 0:
+                results.append(dict(zip(columns, result)))
+                for r in results:
+                    item = {}
+                    for k,v in r.items():
+                        if isinstance(v, (datetime.date, datetime.datetime)):
+                            item[k] = v.isoformat()
+                        elif isinstance(v, (decimal.Decimal)):
+                            item[k] = str(v)
+                        else:
+                            item[k] = v
+                    formatted_list.append(item)
             cursor.commit()    
         except pyodbc.OperationalError as e:            
             app.logger.error(f"{e.args[1]}")
@@ -81,49 +94,47 @@ class ConnectionManager(object):
         finally:
             cursor.close()
                          
-        return result
+        return formatted_list
 
 class Queryable(Resource):
     def executeQueryJson(self, verb, payload=None):
         result = {}  
         entity = type(self).__name__.lower()
-        procedure = f"web.{verb}_{entity}"
+        procedure = f"{verb}_{entity}"
         result = ConnectionManager().executeQueryJSON(procedure, payload)
         return result
 
 # Customer Class
-class Customer(Queryable):
-    def get(self, customer_id):     
-        customer = {}
-        customer["CustomerID"] = customer_id
-        result = self.executeQueryJson("get", customer)   
+class Athlete(Queryable):
+    def get(self, athlete_id):
+        result = self.executeQueryJson("get", int(athlete_id))   
         return result, 200
     
     def put(self):
         args = parser.parse_args()
-        customer = json.loads(args['customer'])
-        result = self.executeQueryJson("put", customer)
+        athlete = json.loads(args['athlete'])
+        result = self.executeQueryJson("put", athlete)
         return result, 201
 
     def patch(self, customer_id):
         args = parser.parse_args()
-        customer = json.loads(args['customer'])
-        customer["CustomerID"] = customer_id        
-        result = self.executeQueryJson("patch", customer)
+        athlete = json.loads(args['athlete'])
+        athlete["id"] = customer_id        
+        result = self.executeQueryJson("patch", athlete)
         return result, 202
 
-    def delete(self, customer_id):       
-        customer = {}
-        customer["CustomerID"] = customer_id
-        result = self.executeQueryJson("delete", customer)
+    def delete(self, athlete_id):       
+        athlete = {}
+        athlete["id"] = athlete_id
+        result = self.executeQueryJson("delete", athlete)
         return result, 202
 
 # Customers Class
-class Customers(Queryable):
+class Athletes(Queryable):
     def get(self):     
         result = self.executeQueryJson("get")   
         return result, 200
     
 # Create API routes
-api.add_resource(Customer, '/customer', '/customer/<customer_id>')
-api.add_resource(Customers, '/customers')
+api.add_resource(Athlete, '/athlete', '/athlete/<athlete_id>')
+api.add_resource(Athletes, '/athletes')
