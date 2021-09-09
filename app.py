@@ -44,7 +44,7 @@ class ConnectionManager(object):
     def __getConnection(self):
         if (self.__connection == None):
             application_name = ";APP={0}".format(socket.gethostname())
-            connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={SERVER}};DATABASE={DB};UID={USR};PWD={PWD}"
+            connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={SERVER};DATABASE={DB};UID={USR};PWD={PWD}"
             self.__connection = pyodbc.connect(connection_string + application_name)                  
         
         return self.__connection
@@ -136,5 +136,5 @@ class Athletes(Queryable):
         return result, 200
     
 # Create API routes
-api.add_resource(Athlete, '/athlete', '/athlete/<athlete_id>')
+#api.add_resource(Athlete, '/athlete', '/athlete/<athlete_id>')
 api.add_resource(Athletes, '/athletes')
